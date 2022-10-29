@@ -2,30 +2,52 @@
 
 namespace App\Service;
 
+use Symfony\Contracts\HttpClient\HttpClientInterface;
+
 class GoogleSearchService
 {
-    public function search(string $keyword): array
-    {
-        $url = 'https://www.google.com/search?q=' . urlencode($keyword);
-        $html = file_get_contents($url);
-        $dom = new \DOMDocument();
-        @$dom->loadHTML($html);
-        $xpath = new \DOMXPath($dom);
-        $nodes = $xpath->query('//div[@class="g"]');
-        $results = [];
+    private const TOP_RESULTS = 10;
 
-        foreach ($nodes as $node) {
-            $result = [
-                'title' => '',
-                'url' => '',
-                'description' => '',
-            ];
-            $result['title'] = $xpath->query('.//h3[@class="LC20lb DKV0Md"]', $node)->item(0)->nodeValue;
-            $result['url'] = $xpath->query('.//div[@class="yuRUbf"]//a', $node)->item(0)->getAttribute('href');
-            $result['description'] = $xpath->query('.//div[@class="IsZvec"]', $node)->item(0)->nodeValue;
-            $results[] = $result;
+    public function __construct(
+        private HttpClientInterface $client,
+        private string $googleSearchKey,
+        private string $googleSearchUrl,
+    ) {}
+
+    public function search(string $query, string $lang, int $top): array
+    {
+        $body = [
+            'api_key'   => $this->googleSearchKey,
+            'q'         => $query,
+            'num'       => $top,
+            'hl'        => $lang,
+            'gl'        => 'ua',
+            'device'    => 'desktop',
+        ];
+
+        $response = $this->client->request('GET', $this->googleSearchUrl, [
+            'query' => $body,
+        ])->toArray();
+
+        return $response['organic_results'] ?? [];
+    }
+
+    public function getTopPosition(string $query, string $url_part, string $lang = 'ru', int $top = self::TOP_RESULTS)
+    {
+        $top = min($top, 100);
+        $top = max($top, 10);
+
+        $position = 0;
+        $results = $this->search($query, $lang, $top);
+
+        foreach ($results as $result) {
+            $position++;
+
+            if (str_contains($result['link'], $url_part)) {
+                break;
+            }
         }
 
-        return $results;
+        return $position;
     }
 }

@@ -9,7 +9,6 @@ use Symfony\Component\Console\Input\InputArgument;
 use Symfony\Component\Console\Input\InputInterface;
 use Symfony\Component\Console\Input\InputOption;
 use Symfony\Component\Console\Output\OutputInterface;
-use Symfony\Component\Console\Style\SymfonyStyle;
 
 #[AsCommand(
     name: 'check:seo',
@@ -18,7 +17,7 @@ use Symfony\Component\Console\Style\SymfonyStyle;
 class CheckSeoCommand extends Command
 {
     public function __construct(
-        private GoogleSearchService $search,
+        private GoogleSearchService $googleSearchService,
     ) {
         parent::__construct();
     }
@@ -26,28 +25,26 @@ class CheckSeoCommand extends Command
     protected function configure(): void
     {
         $this
-            ->addArgument('arg1', InputArgument::OPTIONAL, 'Argument description')
-            ->addOption('option1', null, InputOption::VALUE_NONE, 'Option description')
-        ;
+            ->addArgument('query', InputArgument::REQUIRED, 'Query for google search')
+            ->addOption('pattern', null, InputOption::VALUE_REQUIRED, 'Pattern of url to search')
+            ->addOption('lang', null, InputOption::VALUE_OPTIONAL, 'Language of google search', 'ru')
+            ->addOption('top', null, InputOption::VALUE_OPTIONAL, 'Top results to search', 10);
     }
 
     protected function execute(InputInterface $input, OutputInterface $output): int
     {
-        $io = new SymfonyStyle($input, $output);
-        $arg1 = $input->getArgument('arg1');
+        $output->writeln('Searching... ');
 
-        if ($arg1) {
-            $io->note(sprintf('You passed an argument: %s', $arg1));
-        }
+        $position = $this
+            ->googleSearchService
+            ->getTopPosition(
+                $input->getArgument('query'),
+                $input->getOption('pattern'),
+                $input->getOption('lang'),
+                (int) $input->getOption('top')
+            );
 
-        if ($input->getOption('option1')) {
-            // ...
-        }
-
-        $results = $this->search->search('Symfony');
-        dd($results);
-
-        $io->success('123');
+        $output->writeln("Found at position: {$position}");
 
         return Command::SUCCESS;
     }
