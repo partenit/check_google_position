@@ -38,16 +38,23 @@ class GoogleSearchService
         $top = max($top, 10);
 
         $position = 0;
+        $url = '';
+        $is_found = false;
         $results = $this->search($query, $lang, $top);
 
         foreach ($results as $result) {
             $position++;
 
             if (str_contains($result['link'], $url_part)) {
+                $url = $result['link'];
+                $is_found = true;
+
                 break;
             }
         }
 
-        return $position;
+        return $is_found
+            ? $position . " {$url}"
+            : 0;
     }
 }
